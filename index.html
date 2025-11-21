@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Buddy | Enterprise QR</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script type="text/javascript" src="https://unpkg.com/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+                    colors: { primary: { 50: '#eff6ff', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' } }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Utility Styles */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .tab-content { display: none; animation: fadeIn 0.2s ease-in-out; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* FIX for the "Solid Color" issue: Ensure canvas doesn't stretch weirdly */
+        #qr-preview-container canvas {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 h-screen flex overflow-hidden">
+
+    <aside class="w-64 bg-white border-r border-slate-200 flex flex-col hidden md:flex z-20">
+        <div class="p-6 flex items-center gap-3 border-b border-slate-100">
+            <div class="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold">Q</div>
+            <span class="font-bold text-lg tracking-tight text-slate-800">QC Master<span class="text-primary-600">Hub</span></span>
+        </div>
+        <nav class="flex-1 p-4 space-y-1">
+            <button onclick="switchTab('dashboard')" id="nav-dashboard" class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg bg-primary-50 text-primary-700">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+                Machine Library
+            </button>
+            <button onclick="switchTab('generator')" id="nav-generator" class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-50">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
+                QR Generator
+            </button>
+        </nav>
+    </aside>
+
+    <main class="flex-1 flex flex-col overflow-hidden relative">
+        <header class="md:hidden bg-white border-b border-slate-200 p-4 flex justify-between items-center">
+            <span class="font-bold text-lg">QC MasterHub</span>
+            <div class="flex gap-2">
+                <button onclick="switchTab('dashboard')" class="p-2 text-slate-600 hover:bg-slate-100 rounded">List</button>
+                <button onclick="switchTab('generator')" class="p-2 text-slate-600 hover:bg-slate-100 rounded">Gen</button>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-8 scroll-smooth">
+            
+            <div id="dashboard-view" class="tab-content active max-w-6xl mx-auto">
+                <div class="flex justify-between items-end mb-6">
+                    <div>
+                        <h1 class="text-2xl font-bold text-slate-900">Inspection Machines</h1>
+                        <p class="text-slate-500 mt-1">Manage and print QR codes for shop floor equipment.</p>
+                    </div>
+                    <button onclick="window.print()" class="hidden md:flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                        Print List
+                    </button>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th class="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Machine Name</th>
+                                <th class="px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-center">QR Preview</th>
+                                <th class="px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="machine-table-body" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="generator-view" class="tab-content max-w-6xl mx-auto">
+                <div class="mb-6">
+                    <h1 class="text-2xl font-bold text-slate-900">Custom QR Generator</h1>
+                    <p class="text-slate-500 mt-1">Create styled QR codes instantly.</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div class="lg:col-span-7 space-y-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">Destination URL</label>
+                            <input type="text" id="gen-url" placeholder="https://..." class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary-500 outline-none" value="https://www.google.com">
+                        </div>
+
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <label class="block text-sm font-semibold text-slate-700 mb-3">One-Click Styles</label>
+                            <div class="grid grid-cols-3 gap-3">
+                                <button onclick="applyPreset('corporate')" class="p-3 rounded-lg border hover:border-primary-500 hover:bg-primary-50 text-left transition-all group">
+                                    <div class="w-4 h-4 bg-slate-900 rounded mb-2 group-hover:scale-110 transition-transform"></div>
+                                    <span class="text-sm font-medium">Corporate</span>
+                                </button>
+                                <button onclick="applyPreset('creative')" class="p-3 rounded-lg border hover:border-primary-500 hover:bg-primary-50 text-left transition-all group">
+                                    <div class="w-4 h-4 bg-blue-600 rounded-full mb-2 group-hover:scale-110 transition-transform"></div>
+                                    <span class="text-sm font-medium">Creative</span>
+                                </button>
+                                <button onclick="applyPreset('warm')" class="p-3 rounded-lg border hover:border-primary-500 hover:bg-primary-50 text-left transition-all group">
+                                    <div class="w-4 h-4 bg-orange-500 rounded mb-2 group-hover:scale-110 transition-transform"></div>
+                                    <span class="text-sm font-medium">Safety</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-xs font-medium text-slate-500 mb-1 block">Dot Pattern</label>
+                                <select id="style-dots" onchange="triggerUpdate()" class="w-full p-2 border rounded-lg text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-primary-500">
+                                    <option value="square">Square</option>
+                                    <option value="dots">Dots</option>
+                                    <option value="rounded">Rounded</option>
+                                    <option value="classy">Classy</option>
+                                    <option value="classy-rounded">Classy Rounded</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-xs font-medium text-slate-500 mb-1 block">Color</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="color" id="color-main" value="#2563eb" onchange="triggerUpdate()" class="h-9 w-16 rounded border border-slate-300 cursor-pointer">
+                                    <span class="text-xs text-slate-400">Primary</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-5">
+                        <div class="sticky top-6 bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+                            <div class="bg-slate-50 p-4 border-b border-slate-200 font-semibold text-slate-700 flex justify-between items-center">
+                                <span>Live Preview</span>
+                                <span id="status-indicator" class="w-2 h-2 rounded-full bg-green-500"></span>
+                            </div>
+                            
+                            <div class="p-8 flex justify-center bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9IiNlMmU4ZjAiLz48L3N2Zz4=')]">
+                                <div id="qr-preview-container" class="bg-white p-4 rounded-xl shadow-xl transition-transform duration-200"></div>
+                            </div>
+
+                            <div class="p-6 bg-white border-t border-slate-100 flex gap-2">
+                                <select id="download-ext" class="bg-slate-50 border border-slate-300 text-sm rounded-lg block w-24 p-2.5">
+                                    <option value="png">PNG</option>
+                                    <option value="jpeg">JPG</option>
+                                    <option value="svg">SVG</option>
+                                </select>
+                                <button onclick="downloadQR()" class="flex-1 text-white bg-primary-600 hover:bg-primary-700 font-medium rounded-lg text-sm px-5 py-2.5 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                    Download
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+    
+        </div>
+      <footer class="text-center text-white bg-blue-600 mx-5">
+            Developed by Essa Ahmed. All Rights Reserved
+        </footer>
+    </main>
+          
+    <script>
+        // --- 1. GLOBAL VARS ---
+        let qrInstance = null; 
+        let updateTimer = null;
+        
+        const machines = [
+            { name: "CMM Zeiss Contura G2", url: "https://www.youtube.com/watch?v=-98qLs2NScY" },
+            { name: "Layout Machine", url: "https://www.youtube.com/watch?v=9yD1h0yqC4I" },
+            { name: "Absolute Arm 85 Hexagon", url: "https://www.youtube.com/watch?v=s8YDk44rMHI" },
+            { name: "Rondcom 60A", url: "https://www.youtube.com/watch?v=RGuBE8O02n8" },
+            { name: "Video Measuring Machine", url: "https://www.youtube.com/watch?v=IcWd_bdRgvw" },
+            { name: "Faro Arm", url: "https://www.youtube.com/watch?v=ZqxD65wjYvo" },
+            { name: "Salt Spray Test Machine", url: "https://www.youtube.com/watch?v=WKbqaHKVGXg" },
+            { name: "Suga Ozone Tester", url: "https://www.youtube.com/watch?v=QtybrrnZDHI" },
+            { name: "Atlas CI4000 Weatherability", url: "https://www.youtube.com/watch?v=-4zO73yOoDs" },
+            { name: "Heraeus Heating Oven", url: "https://www.youtube.com/watch?v=7PEnzh8WBhE" },
+            { name: "Spectromax LMX09", url: "https://www.youtube.com/watch?v=pGndaKXFIAY" },
+            { name: "EDX7000 X-Ray", url: "https://www.youtube.com/watch?v=IvRDhr-zFGs" },
+            { name: "Universal Testing Machine", url: "https://www.youtube.com/watch?v=ZHe7oBRWY5A" },
+            { name: "Rockwell Hardness Tester", url: "https://www.youtube.com/watch?v=16P1tNowPY4" },
+            { name: "Vicker Hardness Tester", url: "https://www.youtube.com/watch?v=7Z90OZ7C2jI" },
+            { name: "Inverted Microscope GX53", url: "https://www.youtube.com/watch?v=x7E26tWkH-c" },
+            { name: "Stereo Microscope PST 902", url: "https://www.youtube.com/watch?v=uarFC9DC960" },
+            { name: "Marsurf Roughness Tester", url: "https://www.youtube.com/watch?v=gJqbSXcuYZk" }
+        ];
+
+        // --- 2. INIT ---
+        window.onload = () => {
+            renderMachineTable();
+            
+            // Initial Generation
+            triggerUpdate();
+
+            // Input Listener
+            document.getElementById('gen-url').addEventListener('input', triggerUpdate);
+        };
+
+        // --- 3. GENERATOR LOGIC (FIXED) ---
+        function triggerUpdate() {
+            clearTimeout(updateTimer);
+            
+            // Visual feedback that it's processing
+            document.getElementById('status-indicator').classList.remove('bg-green-500');
+            document.getElementById('status-indicator').classList.add('bg-amber-500');
+
+            updateTimer = setTimeout(() => {
+                const container = document.getElementById('qr-preview-container');
+                const url = document.getElementById('gen-url').value || "https://google.com";
+                const color = document.getElementById('color-main').value;
+                const style = document.getElementById('style-dots').value;
+
+                // KEY FIX: Clear container completely. 
+                // We are NOT using .update() here because switching between SVG/Canvas 
+                // causes the "Solid Color" bug in this library.
+                container.innerHTML = '';
+
+                // KEY FIX: Use "canvas" for preview. SVGs often render as black blocks in live preview divs.
+                qrInstance = new QRCodeStyling({
+                    width: 300,
+                    height: 300,
+                    type: "canvas", // Forces correct rendering on screen
+                    data: url,
+                    dotsOptions: {
+                        color: color,
+                        type: style
+                    },
+                    cornersSquareOptions: {
+                        type: style === 'rounded' || style === 'dots' ? 'extra-rounded' : 'square',
+                        color: color
+                    },
+                    backgroundOptions: {
+                        color: "#ffffff"
+                    }
+                });
+
+                qrInstance.append(container);
+                
+                // Status back to green
+                document.getElementById('status-indicator').classList.remove('bg-amber-500');
+                document.getElementById('status-indicator').classList.add('bg-green-500');
+            }, 300); // 300ms debounce
+        }
+
+        // --- 4. PRESETS ---
+        function applyPreset(type) {
+            const presets = {
+                'corporate': { style: 'square', color: '#0f172a' },
+                'creative': { style: 'dots', color: '#2563eb' },
+                'warm': { style: 'rounded', color: '#f97316' }
+            };
+            const p = presets[type];
+            document.getElementById('style-dots').value = p.style;
+            document.getElementById('color-main').value = p.color;
+            triggerUpdate();
+        }
+
+        // --- 5. DOWNLOAD ---
+        function downloadQR() {
+            if(!qrInstance) return;
+            const ext = document.getElementById('download-ext').value;
+            
+            // Re-generate as high-res for download if needed, 
+            // or just download current instance
+            qrInstance.download({ 
+                name: "qc-qr-code", 
+                extension: ext 
+            });
+        }
+
+        // --- 6. TABS & TABLE ---
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(`${tabName}-view`).classList.add('active');
+            
+            // Nav Styling
+            const activeClass = "bg-primary-50 text-primary-700";
+            const inactiveClass = "text-slate-600 hover:bg-slate-50";
+            
+            const dash = document.getElementById('nav-dashboard');
+            const gen = document.getElementById('nav-generator');
+
+            if(tabName === 'dashboard') {
+                dash.className = `w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg ${activeClass}`;
+                gen.className = `w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg ${inactiveClass}`;
+            } else {
+                gen.className = `w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg ${activeClass}`;
+                dash.className = `w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg ${inactiveClass}`;
+            }
+        }
+
+        function renderMachineTable() {
+            const tbody = document.getElementById('machine-table-body');
+            machines.forEach((machine, i) => {
+                const qrId = `table-qr-${i}`;
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-colors border-b border-slate-50";
+                tr.innerHTML = `
+                    <td class="px-6 py-4">
+                        <div class="font-medium text-slate-900">${machine.name}</div>
+                        <a href="${machine.url}" target="_blank" class="text-xs text-blue-600 hover:underline max-w-[180px] block truncate">Watch Video</a>
+                    </td>
+                    <td class="px-6 py-4 flex justify-center">
+                        <div id="${qrId}" class="w-14 h-14 bg-white rounded border p-1 shadow-sm"></div>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <button onclick="downloadMachineQR('${machine.name}', '${machine.url}')" class="text-slate-400 hover:text-blue-600 p-2 rounded hover:bg-blue-50 transition-all">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+
+                // Render Table QRs (Canvas is safer here too)
+                const qr = new QRCodeStyling({
+                    width: 100, height: 100, type: "canvas", data: machine.url,
+                    dotsOptions: { color: "#000", type: "square" }
+                });
+                qr.append(document.getElementById(qrId));
+            });
+        }
+
+        function downloadMachineQR(name, url) {
+            const qr = new QRCodeStyling({
+                width: 1000, height: 1000, data: url,
+                dotsOptions: { color: "#000", type: "square" }
+            });
+            qr.download({ name: name.replace(/\s+/g, '-').toLowerCase(), extension: "png" });
+        }
+    </script>
+</body>
+</html>
